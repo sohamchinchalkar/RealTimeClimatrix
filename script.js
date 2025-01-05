@@ -687,6 +687,185 @@ d3.selectAll(".filter").on("click", function () {
     }
 });
 
+        let isNightTheme = false; // Flag to track if the current theme is nighttime
+
+// Function to start clear sky effect (with sun)
+function startClearSkyEffect() {
+    // Ensure this effect only runs during daytime and isn't already active
+    if (isClearSky || isNightTheme) return;
+
+    isClearSky = true;
+
+    // Add the sun for daytime
+    const svg = d3.select("body").select("#day-overlay");
+    a = svg.append("circle")
+        .attr("class", "sun")
+        .attr("cx", width/2) // Position sun on the top-left
+        .attr("cy", height/4)
+        .attr("r", 50)
+        .style("fill", "#ffeb3b") // Bright yellow sun
+        .style("opacity", 1.5)
+    
+        a.transition()
+        .duration(30000) // 30 seconds
+        .ease(d3.easeLinear)
+        .attr('cx', width / 1.5)
+        .attr('cy', height / 4)
+        .on('end', function () {
+        d3.select(this).attr('cx', width / 2); // Reset the sun position
+            startClearSkyEffect(); // Re-trigger the effect to loop the sun's path
+        });
+}
+
+// Function to stop clear sky effect (remove sun)
+function stopClearSkyEffect() {
+    isClearSky = false;
+    d3.select("#day-overlay").select(".sun").remove(); // Remove the sun if it exists
+}
+
+// Function to handle day-night theme cycle
+function setDayNightCycle() {
+    const currentTime = new Date(); // Get the current local time
+    const hours = currentTime.getHours(); // Extract the hour (0-23)
+
+    // Determine if it's day or night
+    if (hours >= 6 && hours < 18) {
+        // Daytime Theme
+        isNightTheme = false;
+        d3.select("body")
+            .style("background", "linear-gradient(135deg, #fbc2eb, #a6c1ee)"); // Soft pink to light blue gradient
+
+        d3.select("#night-overlay").remove(); // Remove night overlay if it exists
+        d3.select("#day-overlay").remove(); // Remove any existing daytime effects
+
+        // Add daytime elements
+        const svg = d3.select("body").append("svg")
+            .attr("id", "day-overlay")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .style("position", "absolute")
+            .style("top", 0)
+            .style("left", 0)
+            .style("z-index", -1); // Place it behind other elements
+
+        // Add clouds (shared with the clear sky effect)
+        const numClouds = 5;
+        for (let i = 0; i < numClouds; i++) {
+            svg.append("ellipse")
+                .attr("cx", Math.random() * window.innerWidth) // Random horizontal position
+                .attr("cy", Math.random() * window.innerHeight / 2) // Random vertical position
+                .attr("rx", Math.random() * 60 + 40) // Width of cloud
+                .attr("ry", Math.random() * 30 + 20) // Height of cloud
+                .style("fill", "#ffffff")
+                .style("opacity", 0.7); // Soft clouds
+        }
+    } else {
+        // Nighttime Theme
+        isNightTheme = true;
+        d3.select("body")
+            .style("background", "linear-gradient(135deg, #0f2027, #203a43, #2c5364)"); // Deep blue to teal gradient
+
+        d3.select("#day-overlay").remove(); // Remove daytime overlay if it exists
+        d3.select("#night-overlay").remove(); // Ensure no duplicate overlays
+
+        // Add nighttime elements
+        const svg = d3.select("body").append("svg")
+            .attr("id", "night-overlay")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .style("position", "absolute")
+            .style("top", 0)
+            .style("left", 0)
+            .style("z-index", -1); // Place it behind other elements
+
+        // Add moon
+        svg.append("circle")
+            .attr("cx", window.innerWidth - 120) // Position moon on the top-right
+            .attr("cy", 120)
+            .attr("r", 50)
+            .style("fill", "#f1c40f") // Bright yellow moon
+            .style("filter", "blur(3px)"); // Subtle glow effect
+
+        // Add stars
+        const numStars = 80;
+        for (let i = 0; i < numStars; i++) {
+            svg.append("circle")
+                .attr("cx", Math.random() * window.innerWidth)
+                .attr("cy", Math.random() * window.innerHeight / 2) // Stars in the upper half
+                .attr("r", Math.random() * 2 + 1) // Random size for stars
+                .style("fill", "#ffffff")
+                .style("opacity", Math.random() * 0.8 + 0.2); // Random opacity for variety
+        }
+    }
+}
+
+// Handle filter clicks
+d3.selectAll(".filter").on("click", function () {
+    const range = d3.select(this).attr("data-range");
+
+    // Apply filtering logic
+    filterCities(range);
+
+    // Handle specific filters
+    if (range === "20-40") {
+        // Start clear sky effect only during daytime
+        if (!isNightTheme) {
+            startClearSkyEffect();
+        }
+    }
+
+    if (range !== "20-40") {
+        stopClearSkyEffect(); // Stop the sun if any other filter is clicked
+    }
+
+    // Ensure snow or cloud effects persist with night theme
+    if (range === "below-0") {
+        startSnowEffect();
+    } else {
+        stopSnowEffect();
+    }
+
+    if (range === "0-20") {
+        startCloudEffect();
+    } else {
+        stopCloudEffect();
+    }
+
+    // Handle above 40 range (Only during daytime)
+    if (range === "above-40") {
+        if (!isNightTheme) {
+            // Add hot effect for daytime
+            startHeatwaveEffect();
+        }
+        d3.select("body").style("background", "linear-gradient(135deg, #ff9a00, #ff3f00)"); // Warm colors for heat
+    } else {
+        stopHotEffect(); // Stop hot effect if any other range is selected
+    }
+});
+
+// Function to start hot effect (only for daytime)
+function startHotEffect() {
+    // Create the hot effect (a red-orange gradient background)
+    d3.select("body").style("background", "linear-gradient(135deg, #ff9a00, #ff3f00)"); // Warm colors for heat
+
+    // You can also add any additional visual effects for hot weather, like distortion effects
+}
+
+// Function to stop hot effect
+function stopHotEffect() {
+    // Reset to the previous background when not above 40
+    if (!isNightTheme) {
+        d3.select("body")
+            .style("background", "linear-gradient(135deg, #fbc2eb, #a6c1ee)"); // Default daytime background
+    }
+}
+
+// Set the initial background based on time
+setDayNightCycle();
+
+// Update the background periodically (e.g., every minute)
+setInterval(setDayNightCycle, 60000); // Check and update every 60 seconds
+
 
 
     });
